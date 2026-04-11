@@ -1,0 +1,182 @@
+# FlipFinder
+
+An automated nightly deal scraper that finds profitable resell opportunities and emails you a ranked report every evening.
+
+**What it does:**
+- Scrapes deals from Slickdeals, Facebook Marketplace Austin, Craigslist Austin, and Amazon Warehouse
+- Looks up average eBay sold prices for each item to calculate real profit potential
+- Uses Claude AI to normalize item titles and rate deal quality
+- Emails you a ranked HTML report at 9 PM CT every night
+- Runs quick local scans (FB + CL) at 8 AM and 2 PM so you don't miss fast-moving deals
+
+---
+
+## Setup (step by step)
+
+### 1. Requirements
+
+- Python 3.11+
+- Google Chrome browser (for Facebook Marketplace scraping)
+- A Gmail account with App Password enabled
+- An Anthropic API key (for Claude deal analysis)
+
+### 2. Clone and install dependencies
+
+```bash
+cd FlipFinder
+pip install -r requirements.txt
+```
+
+### 3. Configure your .env file
+
+```bash
+cp .env.example .env
+```
+
+Open `.env` and fill in:
+
+| Variable | What it is |
+|---|---|
+| `ANTHROPIC_API_KEY` | Your Anthropic key from console.anthropic.com |
+| `EMAIL_FROM` | Gmail address to send reports from |
+| `EMAIL_TO` | Where to deliver the report (can be the same address) |
+| `EMAIL_PASSWORD` | Gmail **App Password** (not your login password) |
+| `FACEBOOK_EMAIL` | Facebook account email for Marketplace scraping |
+| `FACEBOOK_PASSWORD` | Facebook account password |
+
+**Gmail App Password setup:**
+1. Go to your Google Account → Security
+2. Enable 2-Step Verification if not already on
+3. Search for "App passwords" → create one for "Mail"
+4. Paste the 16-character password into `EMAIL_PASSWORD`
+
+### 4. First run — Facebook login
+
+Facebook's anti-bot system requires a visible browser on first login. Run this once with the browser visible:
+
+```bash
+python -c "from scrapers.facebook import scrape; scrape(headless=False)"
+```
+
+Complete any 2FA prompts in the browser window. After successful login, the bot will work headlessly.
+
+### 5. Test the setup
+
+Test each scraper individually to make sure they work:
+
+```bash
+python main.py --scraper slickdeals
+python main.py --scraper craigslist
+python main.py --scraper amazon
+```
+
+Run the full pipeline in test mode (no email sent, results printed to terminal):
+
+```bash
+python main.py --test
+```
+
+### 6. Start the daemon
+
+```bash
+python main.py
+```
+
+The scheduler will:
+- **8 PM CT** — run the full scrape (all sources)
+- **9 PM CT** — send the email report
+- **8 AM, 2 PM CT** — quick scan (Facebook + Craigslist only)
+
+---
+
+## How the scoring works
+
+For each item found:
+
+1. **eBay price lookup** — searches completed/sold listings to get the real average sell price
+2. **Profit calculation:**
+   ```
+   ebay_fees       = avg_sold_price × 13%
+   net_sell_price  = avg_sold_price − $8 shipping − ebay_fees
+   estimated_profit = net_sell_price − buy_price
+   roi_percent     = (estimated_profit / buy_price) × 100
+   ```
+3. **Flip Score:**
+   ```
+   flip_score = (roi% × 0.5) + (profit × 0.3) + (velocity_score × 0.2)
+   ```
+   Where `velocity_score` is how many units sold on eBay in the last 7 days (1–10 scale).
+
+4. **AI quality analysis** — Claude rates each deal on:
+   - **Liquidity** (1–10): how fast will it sell?
+   - **Risk** (1–10): fake/scam/damage risk?
+   - **Flip tip**: one actionable sentence
+
+Only deals with **profit ≥ $30** AND **ROI ≥ 20%** are included in the report.
+
+---
+
+## Project structure
+
+```
+FlipFinder/
+├── main.py              # entry point + scheduler
+├── config.py            # all settings from .env
+├── flipfinder.db        # SQLite database (auto-created)
+├── flipfinder.log       # log file (auto-created)
+├── scrapers/
+│   ├── base.py          # Deal dataclass
+│   ├── slickdeals.py    # Slickdeals hot deals
+│   ├── ebay.py          # eBay sold price engine
+│   ├── facebook.py      # Facebook Marketplace Austin
+│   ├── craigslist.py    # Craigslist Austin
+│   └── amazon.py        # Amazon Warehouse deals
+├── engine/
+│   ├── scorer.py        # profit + flip score calculator
+│   └── analyzer.py      # Claude API integration
+├── notifier/
+│   └── emailer.py       # HTML email builder + Gmail sender
+└── database/
+    └── db.py            # SQLite handler
+```
+
+---
+
+## Manual commands
+
+```bash
+# Run full scrape + show results (no email)
+python main.py --test
+
+# Run quick scan (FB + Craigslist only)
+python main.py --quick
+
+# Send report from already-scraped DB deals
+python main.py --report
+
+# Test a specific scraper
+python main.py --scraper [slickdeals|craigslist|amazon|facebook]
+```
+
+---
+
+## Troubleshooting
+
+**Facebook scraper fails:** Facebook has aggressive bot detection. Try:
+- Run headless=False for the first login
+- Use a Facebook account with 1+ years of activity
+- Add a residential proxy (configure in `scrapers/facebook.py`)
+
+**Amazon returns CAPTCHAs:** Amazon blocks scrapers aggressively. Consider:
+- Adding delays between requests (already built in)
+- Rotating residential proxies
+
+**eBay prices seem off:** The eBay search query is generated by Claude. If it's too broad or narrow, you'll see inaccurate averages. Check `flipfinder.log` to see what queries are being used.
+
+**No email received:** Check `flipfinder.log` for SMTP errors. Make sure you're using a Gmail App Password, not your account password.
+
+---
+
+## Disclaimer
+
+This tool is for personal use. Always verify deal legitimacy before purchasing. Estimated profits are based on past eBay sales and don't guarantee future results. Respect each platform's terms of service.

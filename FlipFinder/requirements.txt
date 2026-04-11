@@ -1,0 +1,26 @@
+# FlipFinder dependencies
+# Install: pip install -r requirements.txt
+
+# Core HTTP + parsing
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+lxml>=4.9.0
+
+# Selenium + undetected driver (for Facebook Marketplace)
+selenium>=4.15.0
+undetected-chromedriver>=3.5.0
+
+# Anthropic SDK (Claude API)
+anthropic>=0.40.0
+
+# Scheduler
+APScheduler>=3.10.0
+
+# Email templating
+Jinja2>=3.1.0
+
+# Environment variables
+python-dotenv>=1.0.0
+
+# Timezone support (required by APScheduler)
+pytz>=2023.3

@@ -56,7 +56,7 @@ def filter_profitable(deals: list[Deal]) -> list[Deal]:
     """Return only deals that meet minimum profit and ROI thresholds."""
     qualified = [d for d in deals if d.is_profitable()]
     logger.info(
-        "Profit filter: %d/%d deals passed (profit≥$%.0f, ROI≥%.0f%%)",
+        "Profit filter: %d/%d deals passed (profit>=$%.0f, ROI>=%.0f%%)",
         len(qualified), len(deals),
         config.MIN_PROFIT_THRESHOLD, config.MIN_ROI_THRESHOLD,
     )

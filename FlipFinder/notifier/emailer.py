@@ -243,7 +243,7 @@ def send_email(subject: str, html_body: str) -> bool:
     Returns True on success.
     """
     if not all([config.EMAIL_FROM, config.EMAIL_TO, config.EMAIL_PASSWORD]):
-        logger.error("Email credentials not configured — cannot send report")
+        logger.error("Email credentials not configured - cannot send report")
         return False
 
     msg = MIMEMultipart("alternative")
@@ -262,7 +262,7 @@ def send_email(subject: str, html_body: str) -> bool:
         logger.info("Report email sent to %s", config.EMAIL_TO)
         return True
     except smtplib.SMTPAuthenticationError:
-        logger.error("Gmail authentication failed — check EMAIL_PASSWORD (use App Password, not account password)")
+        logger.error("Gmail authentication failed - check EMAIL_PASSWORD (use App Password, not account password)")
         return False
     except Exception as e:
         logger.error("Failed to send email: %s", e)

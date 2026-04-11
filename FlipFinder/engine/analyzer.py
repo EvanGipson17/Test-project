@@ -73,7 +73,7 @@ def normalize_item(raw_title: str) -> dict:
     }
 
     if not config.ANTHROPIC_API_KEY:
-        logger.debug("No ANTHROPIC_API_KEY — skipping item normalization")
+        logger.debug("No ANTHROPIC_API_KEY - skipping item normalization")
         return default
 
     try:
@@ -180,8 +180,8 @@ def generate_report_intro(deals: list[Deal], stats: dict) -> str:
         return fallback
 
     top_lines = "\n".join(
-        f"  • {d.standardized_name or d.title[:50]}: "
-        f"buy ${d.buy_price:.0f} → sell ~${d.ebay_avg_sold:.0f} "
+        f"  - {d.standardized_name or d.title[:50]}: "
+        f"buy ${d.buy_price:.0f} -> sell ~${d.ebay_avg_sold:.0f} "
         f"(profit ${d.estimated_profit:.0f}, ROI {d.roi_percent:.0f}%)"
         for d in deals[:5]
     )

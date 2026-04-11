@@ -129,7 +129,7 @@ def get_sold_data(query: str, days: int = 7) -> dict:
     else:
         velocity = 10
 
-    logger.debug("eBay: %r → avg=$%.2f sold=%d velocity=%d", query, avg_price, num_sold, velocity)
+    logger.debug("eBay: %r -> avg=$%.2f sold=%d velocity=%d", query, avg_price, num_sold, velocity)
     return {
         "avg_sold_price": round(avg_price, 2),
         "num_sold": num_sold,

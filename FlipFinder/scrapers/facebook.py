@@ -151,7 +151,7 @@ class FacebookMarketplaceScraper:
                 logger.info("Facebook login successful")
                 return True
             except TimeoutException:
-                logger.warning("Facebook login timeout — may need manual 2FA")
+                logger.warning("Facebook login timeout - may need manual 2FA")
                 return False
 
         except Exception as e:
@@ -257,7 +257,7 @@ class FacebookMarketplaceScraper:
         except Exception as e:
             logger.error("FB Marketplace scrape error for %s: %s", category_slug, e)
 
-        logger.info("Facebook Marketplace /%s → %d deals", category_slug, len(deals))
+        logger.info("Facebook Marketplace /%s -> %d deals", category_slug, len(deals))
         return deals
 
     def quit(self):
@@ -278,7 +278,7 @@ def scrape(headless: bool = True) -> list[Deal]:
     scraper = FacebookMarketplaceScraper()
 
     if not scraper.login(headless=headless):
-        logger.error("Facebook login failed — skipping FB Marketplace scrape")
+        logger.error("Facebook login failed - skipping FB Marketplace scrape")
         return []
 
     all_deals: list[Deal] = []

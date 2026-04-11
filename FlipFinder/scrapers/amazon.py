@@ -88,7 +88,7 @@ def _scrape_category(session: requests.Session, node_id: str, category: str) -> 
 
     # If Amazon returns a CAPTCHA page, bail gracefully
     if "captcha" in resp.url.lower() or "robot" in resp.text[:500].lower():
-        logger.warning("Amazon returned CAPTCHA for node %s — skipping", node_id)
+        logger.warning("Amazon returned CAPTCHA for node %s - skipping", node_id)
         return deals
 
     soup = BeautifulSoup(resp.text, "html.parser")
@@ -159,7 +159,7 @@ def _scrape_category(session: requests.Session, node_id: str, category: str) -> 
             logger.debug("Amazon item parse error: %s", e)
             continue
 
-    logger.info("Amazon node %s (%s) → %d deals with ≥%d%% discount",
+    logger.info("Amazon node %s (%s) -> %d deals with >=%d%% discount",
                 node_id, category, len(deals), MIN_DISCOUNT_PERCENT)
     return deals
 

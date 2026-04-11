@@ -12,10 +12,19 @@ Usage:
     python main.py --report          # build and send report from existing DB deals
 """
 import argparse
+import io
 import logging
 import sys
 import time
 from datetime import datetime
+
+# ── Force UTF-8 on Windows stdout/stderr ───────────────────────────────────────
+# Windows consoles default to cp1252 or ascii; deal titles often contain
+# accented characters that blow up the default codec.
+if sys.stdout.encoding and sys.stdout.encoding.lower() not in ("utf-8", "utf-8-sig"):
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+if sys.stderr.encoding and sys.stderr.encoding.lower() not in ("utf-8", "utf-8-sig"):
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
 # ── Logging ────────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -24,7 +33,7 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
     handlers=[
         logging.StreamHandler(sys.stdout),
-        logging.FileHandler("flipfinder.log", mode="a"),
+        logging.FileHandler("flipfinder.log", mode="a", encoding="utf-8"),
     ],
 )
 logger = logging.getLogger("flipfinder")
@@ -104,7 +113,7 @@ def _run_scraper_safe(name: str, fn, accumulator: list) -> None:
         duration = time.time() - start
         db.log_scrape(name, len(items), 0, "success", duration=duration)
         accumulator.extend(items)
-        logger.info("Scraper [%s] → %d raw deals (%.1fs)", name, len(items), duration)
+        logger.info("Scraper [%s] -> %d raw deals (%.1fs)", name, len(items), duration)
     except Exception as e:
         duration = time.time() - start
         db.log_scrape(name, 0, 0, "error", str(e), duration=duration)
@@ -183,7 +192,7 @@ def build_report_and_send(deals: list[Deal] = None, test_mode: bool = False) -> 
             deals.append(d)
 
     if not deals:
-        logger.info("No unreported deals — skipping report")
+        logger.info("No unreported deals - skipping report")
         return
 
     stats = {
@@ -205,7 +214,7 @@ def build_report_and_send(deals: list[Deal] = None, test_mode: bool = False) -> 
         print(f"TOP DEALS ({len(deals)} total):")
         for i, d in enumerate(deals[:10], 1):
             print(f"  {i}. {d.standardized_name or d.title[:50]}")
-            print(f"     Buy ${d.buy_price:.0f} → Sell ${d.ebay_avg_sold:.0f} "
+            print(f"     Buy ${d.buy_price:.0f} -> Sell ${d.ebay_avg_sold:.0f} "
                   f"| Profit ${d.estimated_profit:.0f} | ROI {d.roi_percent:.0f}%")
             if d.flip_tip:
                 print(f"     Tip: {d.flip_tip}")
@@ -243,7 +252,7 @@ def job_quick_scan():
 
 def main():
     parser = argparse.ArgumentParser(
-        description="FlipFinder — automated deal-finding and resell analysis bot"
+        description="FlipFinder - automated deal-finding and resell analysis bot"
     )
     parser.add_argument("--test", action="store_true",
                         help="Run full pipeline once, print results, do NOT send email")

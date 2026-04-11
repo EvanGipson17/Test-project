@@ -118,7 +118,7 @@ def _scrape_section(section: str, category: str) -> list[Deal]:
             logger.debug("CL row parse error: %s", e)
             continue
 
-    logger.info("Craigslist /%s → %d deals (≤$%.0f)", section, len(deals), config.MAX_BUY_PRICE)
+    logger.info("Craigslist /%s -> %d deals (<=$%.0f)", section, len(deals), config.MAX_BUY_PRICE)
     return deals
 
 

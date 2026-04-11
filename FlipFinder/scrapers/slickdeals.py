@@ -167,7 +167,7 @@ def scrape() -> list[Deal]:
                 if d.url not in seen_urls:
                     seen_urls.add(d.url)
                     all_deals.append(d)
-            logger.info("Slickdeals %s → %d deals", url, len(page_deals))
+            logger.info("Slickdeals %s -> %d deals", url, len(page_deals))
         except Exception as e:
             logger.error("Slickdeals scrape failed for %s: %s", url, e)
 

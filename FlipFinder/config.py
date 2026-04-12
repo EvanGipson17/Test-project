@@ -79,8 +79,9 @@ def random_user_agent() -> str:
 
 
 def safe_str(x) -> str:
-    """Convert any value to a UTF-8-safe string, replacing unencodable chars with '?'."""
-    return str(x).encode("utf-8", errors="replace").decode("utf-8")
+    """Convert any value to a pure ASCII string, replacing non-ASCII chars with '?'.
+    Uses ASCII (not UTF-8) so the result is safe for any Windows console encoding."""
+    return str(x).encode("ascii", errors="replace").decode("ascii")
 
 
 # ── Categories ────────────────────────────────────────────────────────────────

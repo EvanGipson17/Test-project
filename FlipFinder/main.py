@@ -1,10 +1,18 @@
-# ── Windows UTF-8 fix (MUST be first, before all other imports) ────────────────
+# ── Windows encoding fix (MUST be first, before all other imports) ────────────
+# Reconfigure stdout/stderr to UTF-8 so non-ASCII deal titles don't crash the
+# console. errors="replace" turns any unencodable char into "?" rather than
+# raising UnicodeEncodeError. The try/except handles environments where the
+# stream has already been replaced (IDLE, pytest capture, etc.).
 import sys
 import io
-if hasattr(sys.stdout, "buffer"):
+try:
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-if hasattr(sys.stderr, "buffer"):
+except AttributeError:
+    pass
+try:
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+except AttributeError:
+    pass
 
 """
 FlipFinder - main entry point.

@@ -94,7 +94,14 @@ def normalize_item(raw_title: str) -> dict:
         )
         text = resp.content[0].text.strip()
         result = json.loads(text)
-        return {**default, **result}
+        merged = {**default, **result}
+        # Sanitize every string field Claude returns — it may include non-ASCII
+        # characters (accented letters, special quotes, etc.) that crash Windows
+        # consoles when logged. Strip them to ASCII here, once, permanently.
+        for key in ("standardized_name", "brand", "model_name", "ebay_search_query"):
+            if key in merged:
+                merged[key] = config.safe_str(merged[key])
+        return merged
     except json.JSONDecodeError as e:
         logger.warning("normalize_item JSON parse error for %r: %s",
                        config.safe_str(raw_title), config.safe_str(e))
@@ -154,7 +161,12 @@ def analyze_deal_quality(deal: Deal) -> dict:
         )
         text = resp.content[0].text.strip()
         result = json.loads(text)
-        return {**default, **result}
+        merged = {**default, **result}
+        # Sanitize string fields returned by Claude — same reason as normalize_item
+        for key in ("flip_tip", "listing_title"):
+            if key in merged:
+                merged[key] = config.safe_str(merged[key])
+        return merged
     except json.JSONDecodeError as e:
         logger.warning("analyze_deal_quality JSON parse error: %s", config.safe_str(e))
         return default

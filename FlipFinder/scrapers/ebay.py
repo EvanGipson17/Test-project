@@ -1,9 +1,9 @@
 """
 eBay Sold Listings Price Engine.
 
-Fetches average sold price + velocity for a given search query
-by scraping eBay's completed/sold listings search page.
-This is the "price truth engine" — not a source for buying.
+Fetches average sold price, velocity, and price confidence for a search query
+by scraping eBay's completed/sold listings (covers last ~30 days of sales).
+This is the price truth engine - not a source for buying.
 """
 import re
 import time
@@ -35,7 +35,6 @@ def _headers() -> dict:
 
 def _parse_price(raw: str) -> Optional[float]:
     """Extract float from strings like '$149.99', '$20.00 to $25.00'."""
-    # Take the lower bound for ranges
     raw = raw.split(" to ")[0]
     match = re.search(r"[\d,]+\.?\d*", raw.replace(",", ""))
     if match:
@@ -46,27 +45,35 @@ def _parse_price(raw: str) -> Optional[float]:
     return None
 
 
-def get_sold_data(query: str, days: int = 7) -> dict:
+def get_sold_data(query: str) -> dict:
     """
-    Search eBay completed/sold listings for `query`.
+    Search eBay completed/sold listings for `query` (last ~30 days).
+
+    Outlier trimming: drops bottom 15% and top 15% of prices for accuracy.
+    Price confidence is rated 1-10 based on how many sold listings were found
+    (more data = higher confidence in the average).
 
     Returns:
         {
-            "avg_sold_price": float,
-            "num_sold": int,       # items sold in the period
-            "velocity_score": int, # 1-10 scale
-            "prices": list[float], # raw prices for debugging
+            "avg_sold_price":   float,
+            "num_sold":         int,
+            "velocity_score":   int,   # 1-10: sell speed
+            "price_confidence": int,   # 1-10: data confidence
+            "prices":           list[float],
         }
     """
+    empty = {"avg_sold_price": 0.0, "num_sold": 0, "velocity_score": 0,
+             "price_confidence": 0, "prices": []}
+
     if not query:
-        return {"avg_sold_price": 0.0, "num_sold": 0, "velocity_score": 0, "prices": []}
+        return empty
 
     url = (
         "https://www.ebay.com/sch/i.html"
         f"?_nkw={quote_plus(query)}"
         "&LH_Sold=1&LH_Complete=1"
-        "&_sacat=0&_ipg=60"
-        "&_sop=13"   # sort: most recently listed
+        "&_sacat=0&_ipg=120"   # up to 120 results for better 30-day coverage
+        "&_sop=13"             # sort: most recently listed
     )
 
     try:
@@ -74,16 +81,13 @@ def get_sold_data(query: str, days: int = 7) -> dict:
         resp = _SESSION.get(url, headers=_headers(), timeout=15)
         resp.raise_for_status()
     except Exception as e:
-        logger.warning("eBay request failed for %r: %s", query, e)
-        return {"avg_sold_price": 0.0, "num_sold": 0, "velocity_score": 0, "prices": []}
+        logger.warning("eBay request failed for %r: %s", query, config.safe_str(e))
+        return empty
 
     soup = BeautifulSoup(resp.text, "html.parser")
-
     prices: list[float] = []
 
-    # Each result is inside li.s-item
     for item in soup.select("li.s-item"):
-        # Skip the first "ghost" placeholder eBay injects
         if "s-item--watch-at-corner" in item.get("class", []):
             continue
 
@@ -91,10 +95,9 @@ def get_sold_data(query: str, days: int = 7) -> dict:
         if not price_el:
             continue
 
-        # Only count green "Sold" prices (not unsold completed)
+        # Only count green "Sold" prices
         sold_label = item.select_one(".POSITIVE") or item.select_one(".s-item__purchase-options-cbx")
         if not sold_label and not item.select_one(".s-item__price.POSITIVE"):
-            # Fallback: check text for 'Sold'
             detail = item.get_text(separator=" ")
             if "Sold" not in detail:
                 continue
@@ -105,17 +108,17 @@ def get_sold_data(query: str, days: int = 7) -> dict:
 
     if not prices:
         logger.debug("No sold prices found for %r", query)
-        return {"avg_sold_price": 0.0, "num_sold": 0, "velocity_score": 0, "prices": []}
+        return empty
 
-    # Remove outliers: drop bottom 10% and top 10%
+    # Remove outliers: drop bottom 15% and top 15% for accurate pricing
     prices.sort()
-    trim = max(1, len(prices) // 10)
-    trimmed = prices[trim:-trim] if len(prices) > 4 else prices
+    trim = max(1, int(len(prices) * 0.15))
+    trimmed = prices[trim:-trim] if len(prices) > 6 else prices
     avg_price = sum(trimmed) / len(trimmed)
 
     num_sold = len(prices)
-    # Velocity: 1-10 scale based on count
-    # 1-2 sold → 1, 3-5 → 3, 6-10 → 5, 11-20 → 7, 21-30 → 8, 31+ → 10
+
+    # Velocity score (1-10): how many units sold
     if num_sold <= 2:
         velocity = 1
     elif num_sold <= 5:
@@ -129,10 +132,27 @@ def get_sold_data(query: str, days: int = 7) -> dict:
     else:
         velocity = 10
 
-    logger.debug("eBay: %r -> avg=$%.2f sold=%d velocity=%d", query, avg_price, num_sold, velocity)
+    # Price confidence (1-10): based on how many data points we have
+    # More sold listings = more reliable average price
+    if num_sold <= 2:
+        confidence = 2
+    elif num_sold <= 5:
+        confidence = 4
+    elif num_sold <= 10:
+        confidence = 6
+    elif num_sold <= 25:
+        confidence = 8
+    else:
+        confidence = 10
+
+    logger.debug(
+        "eBay: %r -> avg=$%.2f sold=%d velocity=%d confidence=%d",
+        query, avg_price, num_sold, velocity, confidence,
+    )
     return {
         "avg_sold_price": round(avg_price, 2),
         "num_sold": num_sold,
         "velocity_score": velocity,
+        "price_confidence": confidence,
         "prices": prices,
     }

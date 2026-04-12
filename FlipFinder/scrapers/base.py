@@ -11,7 +11,7 @@ class Deal:
     # Required fields every scraper must fill
     title: str
     buy_price: float
-    source: str          # "slickdeals" | "facebook" | "craigslist" | "amazon"
+    source: str          # "slickdeals" | "facebook" | "craigslist" | "amazon" | "offerup"
     url: str
     category: str        # electronics | gaming | sneakers | tools | appliances | furniture | other
 
@@ -19,6 +19,7 @@ class Deal:
     location: str = ""
     image_url: str = ""
     condition: str = "unknown"
+    is_local: bool = False   # True for FB, CL, OfferUp (disappear fast — act quickly)
 
     # Filled in by analyzer.normalize_item()
     standardized_name: str = ""
@@ -29,7 +30,8 @@ class Deal:
 
     # Filled in by ebay.get_sold_data()
     ebay_avg_sold: float = 0.0
-    velocity_score: float = 0.0   # 1-10: how many units sold on eBay in last 7 days
+    velocity_score: float = 0.0      # 1-10: eBay sell speed
+    price_confidence: float = 0.0    # 1-10: confidence in avg price (based on # of sold listings)
 
     # Filled in by scorer.calculate_flip_score()
     estimated_profit: float = 0.0
@@ -41,8 +43,15 @@ class Deal:
     risk_score: float = 5.0
     is_legitimate: bool = True
     flip_tip: str = ""
+    listing_title: str = ""          # suggested eBay/platform listing title
 
+    # Filled in by scorer.compute_sell_guide()
+    sell_guide: list = field(default_factory=list)
+    # Each entry: {"platform": str, "list_price": float, "days_to_sell": str}
+
+    # Tracking
     found_at: datetime = field(default_factory=datetime.utcnow)
+    report_count: int = 0    # how many reports this deal has appeared in
 
     def is_profitable(self) -> bool:
         from config import MIN_PROFIT_THRESHOLD, MIN_ROI_THRESHOLD

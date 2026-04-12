@@ -113,6 +113,7 @@ def _scrape_section(section: str, category: str) -> list[Deal]:
                 category=category,
                 location=location,
                 image_url=image_url,
+                is_local=True,
             ))
         except Exception as e:
             logger.debug("CL row parse error: %s", e)

@@ -8,41 +8,55 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# ── Anthropic ──────────────────────────────────────────────────────────────────
+# ── Anthropic ─────────────────────────────────────────────────────────────────
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 
-# ── Email ──────────────────────────────────────────────────────────────────────
+# ── Email ─────────────────────────────────────────────────────────────────────
 EMAIL_FROM = os.getenv("EMAIL_FROM", "")
 EMAIL_TO = os.getenv("EMAIL_TO", "")
 EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD", "")  # Gmail App Password
 SMTP_HOST = "smtp.gmail.com"
 SMTP_PORT = 587
 
-# ── Facebook Marketplace ───────────────────────────────────────────────────────
+# ── Facebook Marketplace ──────────────────────────────────────────────────────
 FACEBOOK_EMAIL = os.getenv("FACEBOOK_EMAIL", "")
 FACEBOOK_PASSWORD = os.getenv("FACEBOOK_PASSWORD", "")
 
-# ── Location ───────────────────────────────────────────────────────────────────
+# ── Location ──────────────────────────────────────────────────────────────────
 AUSTIN_ZIP = os.getenv("AUSTIN_ZIP", "78701")
 AUSTIN_LAT = 30.2672
 AUSTIN_LON = -97.7431
 SEARCH_RADIUS_MILES = int(os.getenv("SEARCH_RADIUS_MILES", "30"))
 
-# ── Profit thresholds ──────────────────────────────────────────────────────────
-MIN_PROFIT_THRESHOLD = float(os.getenv("MIN_PROFIT_THRESHOLD", "30"))
+# ── Deal filters ──────────────────────────────────────────────────────────────
+MIN_PROFIT_THRESHOLD = float(os.getenv("MIN_PROFIT_THRESHOLD", "50"))
 MIN_ROI_THRESHOLD = float(os.getenv("MIN_ROI_THRESHOLD", "20"))
-MAX_BUY_PRICE = float(os.getenv("MAX_BUY_PRICE", "500"))
+MAX_BUY_PRICE = float(os.getenv("MAX_BUY_PRICE", "250"))
 
-# ── eBay fee model ─────────────────────────────────────────────────────────────
-EBAY_FEES_PERCENT = 0.13   # 13% combined eBay + PayPal fees
+# ── eBay fee model ────────────────────────────────────────────────────────────
+EBAY_FEES_PERCENT = 0.13   # 13% combined eBay fees
 SHIPPING_ESTIMATE = 8.0    # flat shipping cost estimate in USD
 
-# ── Scoring weights ────────────────────────────────────────────────────────────
-ROI_WEIGHT = 0.5
-PROFIT_WEIGHT = 0.3
-VELOCITY_WEIGHT = 0.2
+# ── Scoring weights (must sum to 1.0) ─────────────────────────────────────────
+ROI_WEIGHT = 0.45
+PROFIT_WEIGHT = 0.28
+VELOCITY_WEIGHT = 0.17
+CATEGORY_WEIGHT = 0.10
 
-# ── Scraping ───────────────────────────────────────────────────────────────────
+# ── Category priority scores (boosts flip_score for high-velocity categories) ─
+# Scale: 1 (slow/risky) to 10 (fast/high-margin)
+CATEGORY_PRIORITY = {
+    "electronics": 10,
+    "gaming":      9,
+    "sneakers":    8,
+    "streetwear":  8,
+    "tools":       6,
+    "appliances":  5,
+    "furniture":   3,
+    "other":       1,
+}
+
+# ── Scraping ──────────────────────────────────────────────────────────────────
 REQUEST_DELAY_MIN = 2
 REQUEST_DELAY_MAX = 8
 
@@ -64,16 +78,25 @@ def random_user_agent() -> str:
     return random.choice(USER_AGENTS)
 
 
-# ── Categories ─────────────────────────────────────────────────────────────────
+def safe_str(x) -> str:
+    """Convert any value to a UTF-8-safe string, replacing unencodable chars with '?'."""
+    return str(x).encode("utf-8", errors="replace").decode("utf-8")
+
+
+# ── Categories ────────────────────────────────────────────────────────────────
 SLICKDEALS_CATEGORIES = ["electronics", "sneakers", "gaming", "appliances"]
 FB_CATEGORIES = ["electronics", "gaming", "sneakers", "tools", "appliances", "furniture"]
 CL_CATEGORIES = ["electronics", "tools", "gaming", "appliances"]
+OFFERUP_CATEGORIES = ["electronics", "gaming", "sneakers", "tools", "appliances"]
 
-# ── Database ───────────────────────────────────────────────────────────────────
+# ── Database ──────────────────────────────────────────────────────────────────
 DB_PATH = os.path.join(os.path.dirname(__file__), "flipfinder.db")
 
-# ── Scheduler ──────────────────────────────────────────────────────────────────
+# ── Scheduler ─────────────────────────────────────────────────────────────────
 TIMEZONE = "America/Chicago"
-FULL_SCRAPE_HOUR = 20    # 8 PM CT
-REPORT_HOUR = 21         # 9 PM CT
-QUICK_SCAN_HOURS = "8,14"  # 8 AM and 2 PM CT
+# Full scrape + report runs: list of (hour, minute) in CT
+FULL_SCRAPE_TIMES = [(7, 45), (18, 0)]    # 7:45 AM and 6:00 PM CT daily
+# Quick local scan (FB + CL + OfferUp): every N hours from START to END CT
+QUICK_SCAN_START_HOUR = 8
+QUICK_SCAN_END_HOUR = 21
+QUICK_SCAN_INTERVAL_HOURS = 3             # runs at 8, 11, 14, 17, 20 CT

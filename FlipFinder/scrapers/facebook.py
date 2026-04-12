@@ -249,6 +249,7 @@ class FacebookMarketplaceScraper:
                         category=category_name,
                         location="Austin, TX",
                         image_url=image_url,
+                        is_local=True,
                     ))
                 except Exception as e:
                     logger.debug("FB item parse error: %s", e)

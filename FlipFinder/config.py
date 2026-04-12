@@ -9,7 +9,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ── Anthropic ─────────────────────────────────────────────────────────────────
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+# Strip to ASCII — a corrupted .env (wrong encoding, stray BOM, accidental
+# keystroke) can embed non-ASCII bytes in the key value.  That causes
+# httpx / http.client to raise UnicodeEncodeError when setting the x-api-key
+# header, which breaks every single normalize_item() call on Windows.
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "").encode("ascii", errors="replace").decode("ascii").strip()
 
 # ── Email ─────────────────────────────────────────────────────────────────────
 EMAIL_FROM = os.getenv("EMAIL_FROM", "")

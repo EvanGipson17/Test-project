@@ -1,10 +1,12 @@
-# ── Windows encoding fix (MUST be first, before all other imports) ────────────
-# Reconfigure stdout/stderr to UTF-8 so non-ASCII deal titles don't crash the
-# console. errors="replace" turns any unencodable char into "?" rather than
-# raising UnicodeEncodeError. The try/except handles environments where the
-# stream has already been replaced (IDLE, pytest capture, etc.).
+# ── Windows encoding fix (MUST be first — before every other import) ───────────
+import os
 import sys
 import io
+# Force Python's default text encoding to UTF-8 on Windows.
+# This affects stdin/stdout/stderr AND internal codec lookups used by
+# httpx / http.client when encoding HTTP headers.
+os.environ.setdefault("PYTHONIOENCODING", "utf-8:replace")
+os.environ.setdefault("PYTHONUTF8", "1")
 try:
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 except AttributeError:
@@ -33,13 +35,33 @@ import logging
 import time
 from datetime import datetime
 
+
+class AsciiSafeStreamHandler(logging.StreamHandler):
+    """StreamHandler that strips every non-ASCII character before writing.
+
+    This is the definitive fix for UnicodeEncodeError on Windows consoles.
+    No matter what encoding sys.stdout reports, and no matter where the
+    non-ASCII character came from (scraped title, Claude response, exception
+    message, repr() of a deal object), it will be replaced with '?' before
+    it ever reaches the console write call.
+    """
+    def emit(self, record):
+        try:
+            msg = self.format(record)
+            safe = msg.encode("ascii", errors="replace").decode("ascii")
+            self.stream.write(safe + self.terminator)
+            self.flush()
+        except Exception:
+            self.handleError(record)
+
+
 # ── Logging ────────────────────────────────────────────────────────────────────
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     datefmt="%H:%M:%S",
     handlers=[
-        logging.StreamHandler(sys.stdout),
+        AsciiSafeStreamHandler(sys.stdout),
         logging.FileHandler("flipfinder.log", mode="a", encoding="utf-8"),
     ],
 )

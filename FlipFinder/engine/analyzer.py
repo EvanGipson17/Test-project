@@ -102,6 +102,18 @@ def normalize_item(raw_title: str) -> dict:
             if key in merged:
                 merged[key] = config.safe_str(merged[key])
         return merged
+    except UnicodeEncodeError as e:
+        # The Anthropic SDK (via httpx/http.client) tries to ASCII-encode HTTP
+        # headers. If ANTHROPIC_API_KEY or any other value contains a non-ASCII
+        # byte, this fires on EVERY deal. We catch it separately so the error
+        # message is clear and the deal still continues through eBay scoring.
+        logger.error(
+            "normalize_item: UnicodeEncodeError in Claude API call "
+            "(check your ANTHROPIC_API_KEY in .env for non-ASCII characters). "
+            "Position %d, char \\x%02x. Using default values.",
+            e.start, ord(e.object[e.start]) if e.object else 0,
+        )
+        return default
     except json.JSONDecodeError as e:
         logger.warning("normalize_item JSON parse error for %r: %s",
                        config.safe_str(raw_title), config.safe_str(e))
@@ -167,6 +179,9 @@ def analyze_deal_quality(deal: Deal) -> dict:
             if key in merged:
                 merged[key] = config.safe_str(merged[key])
         return merged
+    except UnicodeEncodeError:
+        logger.error("analyze_deal_quality: UnicodeEncodeError - check ANTHROPIC_API_KEY in .env")
+        return default
     except json.JSONDecodeError as e:
         logger.warning("analyze_deal_quality JSON parse error: %s", config.safe_str(e))
         return default

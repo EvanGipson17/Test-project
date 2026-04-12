@@ -63,6 +63,7 @@ def normalize_item(raw_title: str) -> dict:
     condition_estimate, and ebay_search_query.
     Falls back to safe defaults on any error.
     """
+    raw_title = raw_title.encode('ascii', errors='replace').decode('ascii')
     default = {
         "standardized_name": raw_title,
         "category": "other",

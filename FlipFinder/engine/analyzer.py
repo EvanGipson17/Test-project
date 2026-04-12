@@ -102,7 +102,7 @@ def normalize_item(raw_title: str) -> dict:
         logger.error("Claude API error in normalize_item: %s", e)
         return default
     except Exception as e:
-        logger.error("normalize_item unexpected error: %s", e)
+        logger.error("normalize_item unexpected error: %s", str(e).encode('ascii', errors='replace').decode('ascii'))
         return default
 
 

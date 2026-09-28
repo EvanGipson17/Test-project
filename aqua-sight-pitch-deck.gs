@@ -232,9 +232,16 @@ function scaleToPage_(presentation, designWidth) {
       el.setWidth(el.getWidth() * s);
       el.setHeight(el.getHeight() * s);
       if (el.getPageElementType() === SlidesApp.PageElementType.SHAPE) {
-        el.asShape().getText().getRuns().forEach(function (run) {
-          var fs = run.getTextStyle().getFontSize();
-          if (fs) run.getTextStyle().setFontSize(Math.max(7, Math.round(fs * s)));
+        // Background shapes (cards, video frame) hold no text; styling them throws.
+        var text = el.asShape().getText();
+        if (text.isEmpty() || text.asString().trim() === "") return;
+        text.getRuns().forEach(function (run) {
+          try {
+            var fs = run.getTextStyle().getFontSize();
+            if (fs) run.getTextStyle().setFontSize(Math.max(7, Math.round(fs * s)));
+          } catch (e) {
+            // Skip runs Slides refuses to style.
+          }
         });
       }
     });

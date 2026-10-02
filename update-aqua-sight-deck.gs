@@ -15,10 +15,12 @@ var TITLE_FONT = 'Montserrat';
 var BODY_FONT = 'Inter';
 
 function updateAquaSightDeck() {
-  if (DECK_URL.indexOf('docs.google.com') === -1) {
-    throw new Error('Paste your deck link into DECK_URL at the top of the file first.');
-  }
-  var pres = SlidesApp.openByUrl(DECK_URL);
+  // With a link, open that deck. Without one, edit the deck this script is attached to
+  // (Extensions > Apps Script inside Google Slides), which avoids cross-account access issues.
+  var pres = DECK_URL.indexOf('docs.google.com') !== -1
+    ? SlidesApp.openByUrl(DECK_URL)
+    : SlidesApp.getActivePresentation();
+  if (!pres) throw new Error('Open this from inside the deck (Extensions > Apps Script) or paste the deck link into DECK_URL.');
   var ctx = { pres: pres, W: pres.getPageWidth(), H: pres.getPageHeight() };
   Logger.log('Opened "' + pres.getName() + '": ' + pres.getSlides().length + ' slides, page ' +
              Math.round(ctx.W) + ' x ' + Math.round(ctx.H) + ' pt.');
